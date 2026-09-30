@@ -1,31 +1,41 @@
 import pygame
 
 from game.player import Player
+
 from game.world import (
     generate_platforms,
     draw_lava,
     PLATFORM_COLOR,
-    CRUMBLING_PLATFORM_COLOR
+    CRUMBLING_PLATFORM_COLOR,
+    SPRING_PLATFORM_COLOR
 )
 
 
-WIDTH, HEIGHT = 500, 640
+WIDTH = 500
+HEIGHT = 640
+
 FPS = 60
+
 BG = (20, 15, 30)
+
 GROUND_Y = HEIGHT + 200
 
 CRUMBLE_DURATION = 1000
 
 
 class GameEngine:
+
     def __init__(self):
+
         pygame.init()
 
         self.screen = pygame.display.set_mode(
             (WIDTH, HEIGHT)
         )
 
-        pygame.display.set_caption("Lava Escape")
+        pygame.display.set_caption(
+            "Lava Escape"
+        )
 
         self.clock = pygame.time.Clock()
 
@@ -43,7 +53,12 @@ class GameEngine:
 
         self.reset()
 
+    # ==================================================
+    # RESET
+    # ==================================================
+
     def reset(self):
+
         self.platforms = generate_platforms(
             WIDTH,
             GROUND_Y
@@ -57,18 +72,25 @@ class GameEngine:
         self.cam_y = 0
 
         self.lava_y = GROUND_Y + 60
+
         self.lava_rise = 0.4
 
         self.score = 0
 
         self.game_over = False
+
         self.won = False
 
         self.top_y = self.platforms[-1].y
 
         self.frame = 0
 
+    # ==================================================
+    # EVENTS
+    # ==================================================
+
     def handle_events(self):
+
         for event in pygame.event.get():
 
             if event.type == pygame.QUIT:
@@ -82,7 +104,13 @@ class GameEngine:
 
         return True
 
+    # ==================================================
+    # TASK 2
+    # CRUMBLING PLATFORM UPDATE
+    # ==================================================
+
     def update_crumbling_platforms(self):
+
         current_time = pygame.time.get_ticks()
 
         remaining_platforms = []
@@ -91,46 +119,65 @@ class GameEngine:
 
             # Normal platform
             if not p.crumbling:
+
                 remaining_platforms.append(p)
+
                 continue
 
-            # Crumbling platform that has not been activated yet
+            # Crumbling platform which
+            # hasn't been activated yet.
             if p.crumble_started_at is None:
+
                 remaining_platforms.append(p)
+
                 continue
 
-            elapsed = current_time - p.crumble_started_at
+            elapsed = (
+                current_time
+                - p.crumble_started_at
+            )
 
-            # Remove the platform after 1 second
+            # Remove after 1 second.
             if elapsed >= CRUMBLE_DURATION:
+
                 continue
 
             remaining_platforms.append(p)
 
         self.platforms = remaining_platforms
 
+    # ==================================================
+    # GAME UPDATE
+    # ==================================================
+
     def update(self):
+
         if self.game_over or self.won:
             return
 
         keys = pygame.key.get_pressed()
 
+        # Update player.
         self.player.update(
             keys,
             self.platforms,
             WIDTH
         )
 
-        # Task 2:
-        # Check whether any activated crumbling
-        # platforms should now disappear.
+        # Task 2
         self.update_crumbling_platforms()
 
-        target = self.player.rect.centery - HEIGHT // 2
+        # Camera tracking
+        target = (
+            self.player.rect.centery
+            - HEIGHT // 2
+        )
 
         if target < self.cam_y:
+
             self.cam_y = target
 
+        # Lava movement
         self.lava_y -= self.lava_rise
 
         self.lava_rise = min(
@@ -138,63 +185,108 @@ class GameEngine:
             self.lava_rise + 0.0003
         )
 
+        # Score
         self.score = max(
             0,
-            (GROUND_Y - self.player.rect.y) // 10
+            (
+                GROUND_Y
+                - self.player.rect.y
+            ) // 10
         )
 
         self.frame += 1
 
-        if self.player.rect.bottom >= self.lava_y:
+        # Lava collision
+        if (
+            self.player.rect.bottom
+            >= self.lava_y
+        ):
+
             self.game_over = True
 
-        if self.player.rect.top <= self.top_y - 20:
+        # Victory
+        if (
+            self.player.rect.top
+            <= self.top_y - 20
+        ):
+
             self.won = True
 
+    # ==================================================
+    # DRAW
+    # ==================================================
+
     def draw(self):
+
         self.screen.fill(BG)
 
         current_time = pygame.time.get_ticks()
+
+        # ==================================================
+        # DRAW PLATFORMS
+        # ==================================================
 
         for p in self.platforms:
 
             draw_rect = p.rect.copy()
 
-            # Task 2:
-            # Draw crumbling platforms with a shaking animation.
-            if p.crumbling and p.crumble_started_at is not None:
+            # ------------------------------------------------
+            # TASK 2
+            # CRUMBLING PLATFORM SHAKE
+            # ------------------------------------------------
+
+            if (
+                p.crumbling
+                and p.crumble_started_at is not None
+            ):
 
                 elapsed = (
                     current_time
                     - p.crumble_started_at
                 )
 
-                # Shake more visibly while crumbling
                 if elapsed < CRUMBLE_DURATION:
 
-                    shake_x = 0
-                    shake_y = 0
+                    if (
+                        elapsed // 80
+                    ) % 2 == 0:
 
-                    if (elapsed // 80) % 2 == 0:
                         shake_x = 3
+
                     else:
+
                         shake_x = -3
 
                     draw_rect.x += shake_x
-                    draw_rect.y += shake_y
 
-                    color = CRUMBLING_PLATFORM_COLOR
+                    color = (
+                        CRUMBLING_PLATFORM_COLOR
+                    )
 
                 else:
-                    color = CRUMBLING_PLATFORM_COLOR
+
+                    color = (
+                        CRUMBLING_PLATFORM_COLOR
+                    )
+
+            # ------------------------------------------------
+            # TASK 3
+            # SPRING PLATFORM
+            # ------------------------------------------------
+
+            elif p.spring:
+
+                color = SPRING_PLATFORM_COLOR
+
+            # ------------------------------------------------
+            # NORMAL PLATFORM
+            # ------------------------------------------------
 
             else:
-                color = (
-                    CRUMBLING_PLATFORM_COLOR
-                    if p.crumbling
-                    else PLATFORM_COLOR
-                )
 
+                color = PLATFORM_COLOR
+
+            # Move according to camera.
             dr = draw_rect.move(
                 0,
                 -int(self.cam_y)
@@ -207,10 +299,86 @@ class GameEngine:
                 border_radius=4
             )
 
+            # ==================================================
+            # TASK 3
+            # DRAW SPRING COILS
+            # ==================================================
+
+            if p.spring:
+
+                spring_x = dr.centerx
+
+                spring_bottom = dr.bottom
+
+                # Draw three small spring lines.
+                pygame.draw.line(
+                    self.screen,
+                    (255, 245, 150),
+                    (
+                        spring_x - 12,
+                        spring_bottom - 2
+                    ),
+                    (
+                        spring_x - 6,
+                        spring_bottom - 9
+                    ),
+                    3
+                )
+
+                pygame.draw.line(
+                    self.screen,
+                    (255, 245, 150),
+                    (
+                        spring_x - 6,
+                        spring_bottom - 9
+                    ),
+                    (
+                        spring_x,
+                        spring_bottom - 2
+                    ),
+                    3
+                )
+
+                pygame.draw.line(
+                    self.screen,
+                    (255, 245, 150),
+                    (
+                        spring_x,
+                        spring_bottom - 2
+                    ),
+                    (
+                        spring_x + 6,
+                        spring_bottom - 9
+                    ),
+                    3
+                )
+
+                pygame.draw.line(
+                    self.screen,
+                    (255, 245, 150),
+                    (
+                        spring_x + 6,
+                        spring_bottom - 9
+                    ),
+                    (
+                        spring_x + 12,
+                        spring_bottom - 2
+                    ),
+                    3
+                )
+
+        # ==================================================
+        # PLAYER
+        # ==================================================
+
         self.player.draw(
             self.screen,
             self.cam_y
         )
+
+        # ==================================================
+        # LAVA
+        # ==================================================
 
         draw_lava(
             self.screen,
@@ -221,21 +389,38 @@ class GameEngine:
             self.frame
         )
 
+        # ==================================================
+        # HUD
+        # ==================================================
+
         sc = self.font.render(
             f"Height: {self.score}m  R=Restart",
             True,
             (220, 200, 180)
         )
 
-        self.screen.blit(sc, (8, 10))
+        self.screen.blit(
+            sc,
+            (8, 10)
+        )
+
+        # ==================================================
+        # GAME OVER
+        # ==================================================
 
         if self.game_over:
+
             self._msg(
                 "LAVA GOT YOU!",
                 (220, 80, 40)
             )
 
+        # ==================================================
+        # VICTORY
+        # ==================================================
+
         if self.won:
+
             self._msg(
                 "ESCAPED!",
                 (80, 220, 100)
@@ -243,13 +428,24 @@ class GameEngine:
 
         pygame.display.flip()
 
-    def _msg(self, text, color):
+    # ==================================================
+    # MESSAGE
+    # ==================================================
+
+    def _msg(
+        self,
+        text,
+        color
+    ):
+
         ov = pygame.Surface(
             (WIDTH, HEIGHT),
             pygame.SRCALPHA
         )
 
-        ov.fill((0, 0, 0, 150))
+        ov.fill(
+            (0, 0, 0, 150)
+        )
 
         self.screen.blit(
             ov,
@@ -271,7 +467,9 @@ class GameEngine:
         self.screen.blit(
             m,
             (
-                WIDTH // 2 - m.get_width() // 2,
+                WIDTH // 2
+                - m.get_width() // 2,
+
                 HEIGHT // 2 - 40
             )
         )
@@ -279,18 +477,27 @@ class GameEngine:
         self.screen.blit(
             s,
             (
-                WIDTH // 2 - s.get_width() // 2,
+                WIDTH // 2
+                - s.get_width() // 2,
+
                 HEIGHT // 2 + 20
             )
         )
 
+    # ==================================================
+    # MAIN LOOP
+    # ==================================================
+
     def run(self):
+
         running = True
 
         while running:
+
             running = self.handle_events()
 
             self.update()
+
             self.draw()
 
             self.clock.tick(FPS)
