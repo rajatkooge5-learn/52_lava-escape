@@ -20,9 +20,11 @@ class Player:
             dx = SPEED
 
         if (
-            (keys[pygame.K_SPACE]
-             or keys[pygame.K_w]
-             or keys[pygame.K_UP])
+            (
+                keys[pygame.K_SPACE]
+                or keys[pygame.K_w]
+                or keys[pygame.K_UP]
+            )
             and self.on_ground
         ):
             self.vel_y = -13
@@ -46,13 +48,19 @@ class Player:
         # One-way platform collision
         for p in platforms:
             if (
-                self.rect.colliderect(p)
+                self.rect.colliderect(p.rect)
                 and self.vel_y > 0
                 and previous_bottom <= p.top + 2
             ):
                 self.rect.bottom = p.top
                 self.vel_y = 0
                 self.on_ground = True
+
+                # Task 2:
+                # Start the crumble timer when the player
+                # lands on a crumbling platform.
+                if p.crumbling and p.crumble_started_at is None:
+                    p.crumble_started_at = pygame.time.get_ticks()
 
     def draw(self, screen, cam_y):
         dr = self.rect.move(0, -int(cam_y))
